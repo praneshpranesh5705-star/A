@@ -3,11 +3,157 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="0; url=soil-monitor-dashboard.html">
-<title>AgriSense — ESP32 Soil Monitor</title>
+<title>AgriSense | Smart Farm IoT</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#07130d;--panel:#0d1f15;--panel2:#10291a;--line:#1d3b28;--text:#eef8f0;--muted:#91aa98;--green:#61d98b;--yellow:#f4c95d;--red:#ff6b6b;--blue:#63b3ed}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#06110b,#0b1c12);color:var(--text);font:14px Inter,system-ui,sans-serif}button{font:inherit}.app{display:flex;min-height:100vh}.side{width:235px;border-right:1px solid var(--line);padding:24px 16px;position:fixed;height:100vh;background:#08170f}.brand{font-size:21px;font-weight:800;margin:0 8px 4px}.brand span{color:var(--green)}.sub{color:var(--muted);font-size:12px;margin:0 8px 28px}.nav button{display:block;width:100%;border:0;background:transparent;color:var(--muted);text-align:left;padding:12px;border-radius:10px;margin:4px 0;cursor:pointer}.nav button.active,.nav button:hover{background:var(--panel2);color:var(--text)}.main{margin-left:235px;width:calc(100% - 235px);padding:26px;max-width:1500px}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:24px}.title h1{margin:0 0 5px;font-size:28px}.title p{margin:0;color:var(--muted)}.status{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);padding:10px 14px;border-radius:999px}.dot{width:9px;height:9px;border-radius:50%;background:var(--yellow)}.dot.live{background:var(--green);box-shadow:0 0 12px #61d98b}.dot.off{background:var(--red)}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:rgba(13,31,21,.9);border:1px solid var(--line);border-radius:15px;padding:18px}.metric{min-height:142px}.label{color:var(--muted);font-size:12px}.metric h2{font-size:34px;margin:10px 0 6px}.metric small{color:var(--muted)}.pill{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:11px;margin-top:8px;background:#173323;color:var(--green)}.pill.warn{background:#392e13;color:var(--yellow)}.pill.bad{background:#3a1919;color:var(--red)}.section{margin-top:18px}.two{display:grid;grid-template-columns:2fr 1fr;gap:14px}.card h3{margin:0 0 15px;font-size:15px}.chart{height:310px}.devices{display:grid;gap:10px}.device{padding:13px;border:1px solid var(--line);border-radius:11px;background:#0a1a11}.device strong{display:block;margin-bottom:4px}.device span{font-size:12px;color:var(--muted)}.reading-list{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:12px;white-space:nowrap}.table th{color:var(--muted);font-weight:500}.alert{padding:11px;border-left:3px solid var(--green);background:#0b2114;border-radius:7px;margin:8px 0;color:#cfe8d6}.alert.warn{border-color:var(--yellow);background:#211c0b}.alert.bad{border-color:var(--red);background:#241010}.config{margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:12px}.hide{display:none}@media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}@media(max-width:720px){.side{position:static;width:100%;height:auto;border-right:0;border-bottom:1px solid var(--line)}.app{display:block}.main{margin:0;width:100%;padding:16px}.nav{display:flex;overflow:auto}.nav button{min-width:max-content}.grid{grid-template-columns:1fr 1fr}.top{align-items:flex-start;flex-direction:column}}@media(max-width:480px){.grid{grid-template-columns:1fr}.metric h2{font-size:30px}}
+</style>
 </head>
 <body>
-<p>Opening AgriSense Soil Monitor…</p>
-<p><a href="soil-monitor-dashboard.html">Open Soil Monitor</a></p>
+<div class="app">
+<aside class="side">
+  <div class="brand">Agri<span>Sense</span></div>
+  <p class="sub">Smart Farm IoT Platform</p>
+  <div class="nav">
+    <button class="active" data-section="overview">▦ Overview</button>
+    <button data-section="analytics">⌁ Analytics</button>
+    <button data-section="alerts">⚠ Alerts</button>
+    <button data-section="devices">⌁ Devices</button>
+  </div>
+  <div class="config">Live mode only. Values appear after the ESP32 sends readings to Supabase.</div>
+</aside>
+
+<main class="main">
+<header class="top">
+  <div class="title"><h1>Farm Overview</h1><p>Real-time soil and temperature monitoring</p></div>
+  <div class="status"><span id="dot" class="dot"></span><span id="connection">Connecting…</span></div>
+</header>
+
+<section id="overview">
+<div class="grid">
+  <div class="card metric"><div class="label">SOIL MOISTURE</div><h2 id="moisture">—</h2><small>percentage</small><div id="moistureState" class="pill">Waiting</div></div>
+  <div class="card metric"><div class="label">TEMPERATURE</div><h2 id="temp">—</h2><small>°C</small><div id="tempState" class="pill">Waiting</div></div>
+  <div class="card metric"><div class="label">ESP32 NODE</div><h2 id="node">—</h2><small id="last">No reading yet</small><div id="nodeState" class="pill">Offline</div></div>
+  <div class="card metric"><div class="label">READINGS (24H)</div><h2 id="count">—</h2><small>database records</small><div class="pill">Live database</div></div>
+</div>
+
+<div class="two section">
+  <div class="card"><h3>Sensor Trend — Last 24 Hours</h3><div class="chart"><canvas id="chart"></canvas></div></div>
+  <div class="card"><h3>Field Conditions</h3><div id="alerts"><div class="alert">Waiting for the first ESP32 reading.</div></div></div>
+</div>
+
+<div class="card section"><h3>Recent Readings</h3><div class="reading-list"><table class="table"><thead><tr><th>Time</th><th>Moisture</th><th>Temperature</th><th>Status</th></tr></thead><tbody id="rows"><tr><td colspan="4">Waiting for ESP32 data…</td></tr></tbody></table></div></div>
+</section>
+
+<section id="analytics" class="section hide"><div class="card"><h3>Analytics</h3><p id="analyticsText" style="color:var(--muted)">Waiting for data…</p><div class="chart" style="height:360px"><canvas id="analyticsChart"></canvas></div></div></section>
+<section id="alerts" class="section hide"><div class="card"><h3>Alerts</h3><div id="alertPage"><div class="alert">No live readings yet.</div></div></div></section>
+<section id="devices" class="section hide"><div class="card"><h3>Connected Devices</h3><div class="devices"><div class="device"><strong>ESP32 Field Node 01</strong><span id="deviceDetail">Waiting for its first database reading.</span></div></div></div></section>
+</main>
+</div>
+
+<script>
+const SUPABASE_URL="https://YOUR_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY="YOUR_ANON_KEY";
+const POLL_MS=10000;
+const headers={apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+SUPABASE_ANON_KEY};
+let history=[], chart=null, analyticsChart=null;
+
+function setText(id,v){document.getElementById(id).textContent=v}
+function moistureStatus(v){return v<30?["Dry — irrigation needed","bad"]:v>70?["Wet","warn"]:["Optimal",""]}
+function tempStatus(v){return v>32?["High temperature","bad"]:v<15?["Cool","warn"]:["Optimal",""]}
+function statusClass(base,kind){return "pill "+kind}
+
+function updateUI(rows){
+  history=rows||[];
+  if(!history.length){setText("count","0");return}
+  const latest=history[0], m=Number(latest.soil_moisture), t=Number(latest.temperature);
+  setText("moisture",m.toFixed(1)+"%");
+  setText("temp",t.toFixed(1));
+  const ms=moistureStatus(m), ts=tempStatus(t);
+  const mb=document.getElementById("moistureState");mb.textContent=ms[0];mb.className=statusClass("pill",ms[1]);
+  const tb=document.getElementById("tempState");tb.textContent=ts[0];tb.className=statusClass("pill",ts[1]);
+  const time=new Date(latest.created_at);
+  setText("last","Last: "+time.toLocaleString());
+  setText("node","Online");
+  document.getElementById("nodeState").textContent="Online";
+  document.getElementById("nodeState").className="pill";
+  setText("count",String(history.length));
+  document.getElementById("dot").className="dot live";setText("connection","ESP32 data live");
+  document.getElementById("deviceDetail").textContent="Latest reading "+time.toLocaleString()+" • "+history.length+" readings in the last 24 hours";
+  renderAlerts(m,t);
+  renderRows(history.slice(0,12));
+  renderChart();
+  renderAnalytics();
+}
+
+function renderAlerts(m,t){
+  const items=[];
+  if(m<30)items.push('<div class="alert bad">Soil moisture is low. Check irrigation.</div>');
+  else if(m>70)items.push('<div class="alert warn">Soil moisture is high. Avoid unnecessary watering.</div>');
+  else items.push('<div class="alert">Soil moisture is in the configured normal band.</div>');
+  if(t>32)items.push('<div class="alert bad">Temperature is above the configured threshold.</div>');
+  document.getElementById("alerts").innerHTML=items.join("");
+  document.getElementById("alertPage").innerHTML=items.join("");
+}
+
+function renderRows(rows){
+  document.getElementById("rows").innerHTML=rows.map(r=>{
+    const m=Number(r.soil_moisture),t=Number(r.temperature),ms=moistureStatus(m);
+    return '<tr><td>'+new Date(r.created_at).toLocaleString()+'</td><td>'+m.toFixed(1)+'%</td><td>'+t.toFixed(1)+'°C</td><td>'+ms[0]+'</td></tr>';
+  }).join("");
+}
+
+function makeChart(canvasId){
+ return new Chart(document.getElementById(canvasId),{type:"line",data:{labels:[],datasets:[
+  {label:"Soil moisture %",data:[],borderColor:"#61d98b",backgroundColor:"transparent",tension:.3,pointRadius:2,yAxisID:"m"},
+  {label:"Temperature °C",data:[],borderColor:"#f4c95d",backgroundColor:"transparent",tension:.3,pointRadius:2,yAxisID:"t"}]},
+  options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},plugins:{legend:{labels:{color:"#91aa98"}}},scales:{
+   x:{ticks:{color:"#91aa98",maxTicksLimit:8},grid:{color:"#173323"}},
+   m:{position:"left",min:0,max:100,ticks:{color:"#61d98b"},grid:{color:"#173323"}},
+   t:{position:"right",ticks:{color:"#f4c95d"},grid:{display:false}}
+  }}})
+}
+function renderChart(){
+ const data=[...history].reverse(),labels=data.map(r=>new Date(r.created_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}));
+ if(!chart)chart=makeChart("chart");
+ chart.data.labels=labels;chart.data.datasets[0].data=data.map(r=>Number(r.soil_moisture));chart.data.datasets[1].data=data.map(r=>Number(r.temperature));chart.update();
+}
+function renderAnalytics(){
+ const m=history.map(r=>Number(r.soil_moisture)),t=history.map(r=>Number(r.temperature));
+ const avgM=m.reduce((a,b)=>a+b,0)/m.length,avgT=t.reduce((a,b)=>a+b,0)/t.length;
+ setText("analyticsText","Average moisture: "+avgM.toFixed(1)+"% • Average temperature: "+avgT.toFixed(1)+"°C • Records: "+history.length);
+ if(!analyticsChart)analyticsChart=makeChart("analyticsChart");
+ const data=[...history].reverse();
+ analyticsChart.data.labels=data.map(r=>new Date(r.created_at).toLocaleString());
+ analyticsChart.data.datasets[0].data=data.map(r=>Number(r.soil_moisture));
+ analyticsChart.data.datasets[1].data=data.map(r=>Number(r.temperature));
+ analyticsChart.update();
+}
+function offline(msg){
+ document.getElementById("dot").className="dot off";setText("connection","Waiting for ESP32");
+ document.getElementById("nodeState").textContent="Offline";document.getElementById("nodeState").className="pill bad";
+ if(msg&&msg!=="empty")document.getElementById("alerts").innerHTML='<div class="alert warn">'+msg+'</div>';
+}
+
+async function poll(){
+ try{
+  if(SUPABASE_URL.includes("YOUR_PROJECT")||SUPABASE_ANON_KEY==="YOUR_ANON_KEY"){offline("Configure Supabase URL and anon key to connect the dashboard.");return}
+  const since=new Date(Date.now()-86400000).toISOString();
+  const url=SUPABASE_URL+"/rest/v1/readings?created_at=gte."+encodeURIComponent(since)+"&order=created_at.desc&limit=500";
+  const res=await fetch(url,{headers});
+  if(!res.ok)throw new Error("Supabase connection failed ("+res.status+").");
+  const rows=await res.json();
+  if(!rows.length){offline("No readings yet — waiting for the ESP32.");setText("count","0");return}
+  updateUI(rows);
+ }catch(e){offline(e.message)}
+}
+document.querySelectorAll(".nav button").forEach(btn=>btn.addEventListener("click",()=>{
+ document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("active"));btn.classList.add("active");
+ ["overview","analytics","alerts","devices"].forEach(id=>document.getElementById(id).classList.add("hide"));
+ document.getElementById(btn.dataset.section).classList.remove("hide");
+}));
+poll();setInterval(poll,POLL_MS);
+</script>
 </body>
 </html>
