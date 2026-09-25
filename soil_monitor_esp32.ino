@@ -29,6 +29,8 @@ const char* SUPABASE_ANON_KEY  = "YOUR_ANON_KEY";
 
 const int SOIL_PIN      = 34;   // ADC1 pin, capacitive soil sensor
 const int ONE_WIRE_PIN  = 4;    // DS18B20 data pin
+const int PUMP_RELAY_PIN = 26;   // Relay IN -> GPIO26 (active LOW on many relay modules)
+const bool RELAY_ACTIVE_LOW = true;
 
 // Calibrate against your own sensor: read raw values in dry air and fully in water,
 // then put those numbers here.
@@ -36,11 +38,17 @@ const int SOIL_DRY_RAW = 3000;
 const int SOIL_WET_RAW = 1200;
 
 const unsigned long SEND_INTERVAL_MS = 60000; // send a reading every 60s
+const float IRRIGATION_START_MOISTURE = 30.0; // start automatic watering below this %
+const float IRRIGATION_STOP_MOISTURE  = 55.0; // stop after moisture reaches this %
+const unsigned long MAX_PUMP_RUNTIME_MS = 120000; // safety limit: 2 minutes
 
 OneWire oneWire(ONE_WIRE_PIN);
 DallasTemperature tempSensor(&oneWire);
 
 unsigned long lastSend = 0;
+bool pumpOn = false;
+unsigned long pumpStartedAt = 0;
+float pumpStartMoisture = 0;
 
 void connectWiFi() {
   WiFi.mode(WIFI_STA);
@@ -66,6 +74,31 @@ float readSoilTemperatureC() {
   return tempSensor.getTempCByIndex(0);
 }
 
+void setPump(bool on) {
+  pumpOn = on;
+  int level = on ? (RELAY_ACTIVE_LOW ? LOW : HIGH) : (RELAY_ACTIVE_LOW ? HIGH : LOW);
+  digitalWrite(PUMP_RELAY_PIN, level);
+  if (on) pumpStartedAt = millis();
+  Serial.println(on ? "PUMP ON" : "PUMP OFF");
+}
+
+void sendIrrigationEvent(float beforeMoisture, float afterMoisture, unsigned long durationMs, const char* trigger) {
+  if (WiFi.status() != WL_CONNECTED) connectWiFi();
+  HTTPClient http;
+  String url = String(SUPABASE_URL) + "/rest/v1/irrigation_events";
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("apikey", SUPABASE_ANON_KEY);
+  http.addHeader("Authorization", String("Bearer ") + SUPABASE_ANON_KEY);
+  String body = "{\"device_id\":\"ESP32-Field-01\",\"moisture_before\":" +
+                String(beforeMoisture,1) + ",\"moisture_after\":" +
+                String(afterMoisture,1) + ",\"duration_seconds\":" +
+                String(durationMs/1000) + ",\"trigger\":\"" + trigger + "\"}";
+  int code = http.POST(body);
+  Serial.printf("IRRIGATION EVENT POST %d\n", code);
+  http.end();
+}
+
 void sendReading(float moisture, float temperature) {
   if (WiFi.status() != WL_CONNECTED) {
     connectWiFi();
@@ -88,6 +121,8 @@ void sendReading(float moisture, float temperature) {
 
 void setup() {
   Serial.begin(115200);
+  pinMode(PUMP_RELAY_PIN, OUTPUT);
+  setPump(false);
   analogReadResolution(12); // 0-4095
   tempSensor.begin();
   connectWiFi();
