@@ -41,6 +41,9 @@ const unsigned long SEND_INTERVAL_MS = 60000; // send a reading every 60s
 const float IRRIGATION_START_MOISTURE = 30.0; // start automatic watering below this %
 const float IRRIGATION_STOP_MOISTURE  = 55.0; // stop after moisture reaches this %
 const unsigned long MAX_PUMP_RUNTIME_MS = 120000; // safety limit: 2 minutes
+const char* DEVICE_ID = "ESP32-Field-01";
+String pumpMode = "AUTO";
+long lastCommandId = 0;
 
 OneWire oneWire(ONE_WIRE_PIN);
 DallasTemperature tempSensor(&oneWire);
@@ -99,6 +102,56 @@ void sendIrrigationEvent(float beforeMoisture, float afterMoisture, unsigned lon
   http.end();
 }
 
+void sendPumpCommandStatus(long commandId) {
+  if (WiFi.status() != WL_CONNECTED) connectWiFi();
+  HTTPClient http;
+  String url = String(SUPABASE_URL) + "/rest/v1/pump_commands?id=eq." + String(commandId);
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("apikey", SUPABASE_ANON_KEY);
+  http.addHeader("Authorization", String("Bearer ") + SUPABASE_ANON_KEY);
+  http.addHeader("Prefer", "return=minimal");
+  http.PATCH("{\"processed\":true}");
+  http.end();
+}
+
+void pollPumpCommand() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  String url = String(SUPABASE_URL) +
+               "/rest/v1/pump_commands?device_id=eq." + String(DEVICE_ID) +
+               "&processed=eq.false&order=id.asc&limit=1";
+  http.begin(url);
+  http.addHeader("apikey", SUPABASE_ANON_KEY);
+  http.addHeader("Authorization", String("Bearer ") + SUPABASE_ANON_KEY);
+  int code = http.GET();
+  if (code == 200) {
+    String response = http.getString();
+    int idPos = response.indexOf("\"id\":");
+    int cmdPos = response.indexOf("\"command\":\"");
+    if (idPos >= 0 && cmdPos >= 0) {
+      int idEnd = response.indexOf(",", idPos);
+      long commandId = response.substring(idPos + 5, idEnd).toInt();
+      int cmdStart = cmdPos + 11;
+      int cmdEnd = response.indexOf("\"", cmdStart);
+      String command = response.substring(cmdStart, cmdEnd);
+
+      if (command == "ON") {
+        pumpMode = "MANUAL";
+        setPump(true);
+      } else if (command == "OFF") {
+        pumpMode = "MANUAL";
+        setPump(false);
+      } else if (command == "AUTO") {
+        pumpMode = "AUTO";
+      }
+      lastCommandId = commandId;
+      sendPumpCommandStatus(commandId);
+    }
+  }
+  http.end();
+}
+
 void sendReading(float moisture, float temperature) {
   if (WiFi.status() != WL_CONNECTED) {
     connectWiFi();
@@ -129,11 +182,33 @@ void setup() {
 }
 
 void loop() {
+  pollPumpCommand();
+
   if (millis() - lastSend >= SEND_INTERVAL_MS) {
     lastSend = millis();
     float moisture = readSoilMoisturePercent();
     float temperature = readSoilTemperatureC();
     Serial.printf("Moisture: %.1f%%  Temp: %.1fC\n", moisture, temperature);
+
+    if (pumpMode == "AUTO") {
+      if (!pumpOn && moisture < IRRIGATION_START_MOISTURE) {
+        pumpStartMoisture = moisture;
+        setPump(true);
+      }
+      if (pumpOn &&
+          (moisture >= IRRIGATION_STOP_MOISTURE ||
+           millis() - pumpStartedAt >= MAX_PUMP_RUNTIME_MS)) {
+        setPump(false);
+        sendIrrigationEvent(pumpStartMoisture, moisture,
+                            millis() - pumpStartedAt, "automatic");
+      }
+    } else if (pumpOn && millis() - pumpStartedAt >= MAX_PUMP_RUNTIME_MS) {
+      // Safety cutoff even in manual mode.
+      setPump(false);
+      sendIrrigationEvent(pumpStartMoisture, moisture,
+                          millis() - pumpStartedAt, "manual");
+    }
+
     sendReading(moisture, temperature);
   }
 }
