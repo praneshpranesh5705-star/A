@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Field Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;700&family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-date-fns/3.0.0/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+  :root{
+    --soil-950:#1B1712; --soil-900:#211D19; --soil-800:#2E2822; --soil-700:#3C342B;
+    --paper:#EDE6D8; --paper-dim:#B9AF9C;
+    --moss:#5C8A72; --clay:#C97C4B; --brick:#B33A3A;
+    --line:#443A2F;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--soil-950); color:var(--paper);
+    font-family:'Inter',system-ui,sans-serif;
+    padding:32px 20px 60px;
+  }
+  .wrap{max-width:760px; margin:0 auto;}
+  header{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:8px;}
+  h1{font-family:'Zilla Slab',serif; font-weight:700; font-size:28px; margin:0; letter-spacing:.2px;}
+  .status{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--paper-dim);}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--moss);}
+  .dot.stale{background:var(--brick); animation:none;}
+  .dot.live{animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  .readouts{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;}
+  @media (max-width:520px){.readouts{grid-template-columns:1fr;}}
+  .card{
+    background:var(--soil-800); border:1px solid var(--line); border-radius:4px;
+    padding:22px; display:flex; align-items:center; gap:18px;
+  }
+  .gauge{flex:none;}
+  .card-body{min-width:0;}
+  .label{font-size:12px; color:var(--paper-dim); margin:0 0 4px;}
+  .value{font-family:'JetBrains Mono',monospace; font-weight:600; font-size:34px; line-height:1; margin:0;}
+  .unit{font-size:16px; color:var(--paper-dim); font-weight:400;}
+  .band{font-size:13px; margin-top:6px; font-weight:500;}
+  .band.optimal{color:var(--moss);}
+  .band.warn{color:var(--clay);}
+  .band.alert{color:var(--brick);}
+
+  .panel{background:var(--soil-800); border:1px solid var(--line); border-radius:4px; padding:20px 20px 8px; margin-bottom:20px;}
+  .panel h2{font-family:'Zilla Slab',serif; font-size:16px; font-weight:500; margin:0 0 14px; color:var(--paper-dim);}
+  .chart-holder{height:220px;}
+
+  footer{display:flex; justify-content:space-between; font-size:12px; color:var(--paper-dim); flex-wrap:wrap; gap:6px;}
+  .error{background:#3A1E1E; border:1px solid var(--brick); color:#F0C9C9; padding:12px 16px; border-radius:4px; font-size:13px; margin-bottom:20px; display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Field Monitor</h1>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">connecting…</span></div>
+  </header>
+
+  <div class="error" id="errorBox"></div>
+
+  <div class="readouts">
+    <div class="card">
+      <svg class="gauge" id="gaugeMoisture" width="72" height="72" viewBox="0 0 72 72"></svg>
+      <div class="card-body">
+        <p class="label">Soil moisture</p>
+        <p class="value" id="moistureValue">–<span class="unit">%</span></p>
+        <p class="band" id="moistureBand"></p>
+      </div>
+    </div>
+    <div class="card">
+      <svg class="gauge" id="gaugeTemp" width="72" height="72" viewBox="0 0 72 72"></svg>
+      <div class="card-body">
+        <p class="label">Soil temperature</p>
+        <p class="value" id="tempValue">–<span class="unit">°C</span></p>
+        <p class="band" id="tempBand"></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Last 24 hours</h2>
+    <div class="chart-holder"><canvas id="historyChart"></canvas></div>
+  </div>
+
+  <footer>
+    <span id="lastUpdated">No readings yet</span>
+    <span>Polling every 15s</span>
+  </footer>
+</div>
+
+<script>
+// ---- Fill these in with your Supabase project details ----
+const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR_ANON_KEY";
+// ------------------------------------------------------------
+
+// Adjust these to your crop/soil type
+const MOISTURE_BANDS = { dry: 30, wet: 70 };     // below dry = dry, above wet = wet
+const TEMP_BANDS = { cool: 15, hot: 32 };        // below cool = cool, above hot = hot
+
+const POLL_MS = 15000;
+const STALE_AFTER_MS = 5 * 60 * 1000; // mark connection stale if no new reading in 5 min
+
+const headers = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` };
+
+function drawGauge(svg, pct, color){
+  svg.innerHTML = "";
+  const r = 30, c = 36, circ = 2 * Math.PI * r;
+  const bg = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  bg.setAttribute("cx", c); bg.setAttribute("cy", c); bg.setAttribute("r", r);
+  bg.setAttribute("fill","none"); bg.setAttribute("stroke","#443A2F"); bg.setAttribute("stroke-width","6");
+  const fg = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  fg.setAttribute("cx", c); fg.setAttribute("cy", c); fg.setAttribute("r", r);
+  fg.setAttribute("fill","none"); fg.setAttribute("stroke", color); fg.setAttribute("stroke-width","6");
+  fg.setAttribute("stroke-linecap","round");
+  fg.setAttribute("stroke-dasharray", circ);
+  fg.setAttribute("stroke-dashoffset", circ * (1 - Math.max(0,Math.min(1,pct))));
+  fg.setAttribute("transform", `rotate(-90 ${c} ${c})`);
+  svg.appendChild(bg); svg.appendChild(fg);
+}
+
+function classify(value, low, high){
+  if (value < low) return "low";
+  if (value > high) return "high";
+  return "mid";
+}
+
+function renderLatest(row){
+  const m = row.soil_moisture, t = row.temperature;
+
+  document.getElementById("moistureValue").innerHTML = `${m.toFixed(1)}<span class="unit">%</span>`;
+  document.getElementById("tempValue").innerHTML = `${t.toFixed(1)}<span class="unit">°C</span>`;
+
+  const mClass = classify(m, MOISTURE_BANDS.dry, MOISTURE_BANDS.wet);
+  const mBand = document.getElementById("moistureBand");
+  mBand.textContent = mClass === "low" ? "Dry — needs water" : mClass === "high" ? "Waterlogged" : "Optimal";
+  mBand.className = "band " + (mClass === "mid" ? "optimal" : mClass === "high" ? "warn" : "alert");
+  drawGauge(document.getElementById("gaugeMoisture"), m/100, mClass === "mid" ? "#5C8A72" : mClass === "high" ? "#C97C4B" : "#B33A3A");
+
+  const tClass = classify(t, TEMP_BANDS.cool, TEMP_BANDS.hot);
+  const tBand = document.getElementById("tempBand");
+  tBand.textContent = tClass === "low" ? "Cool" : tClass === "high" ? "Too hot" : "Optimal";
+  tBand.className = "band " + (tClass === "mid" ? "optimal" : tClass === "low" ? "warn" : "alert");
+  drawGauge(document.getElementById("gaugeTemp"), Math.max(0,Math.min(1,t/45)), tClass === "mid" ? "#5C8A72" : tClass === "low" ? "#C97C4B" : "#B33A3A");
+
+  const ts = new Date(row.created_at);
+  document.getElementById("lastUpdated").textContent = "Last reading: " + ts.toLocaleString();
+
+  const age = Date.now() - ts.getTime();
+  const dot = document.getElementById("statusDot");
+  const text = document.getElementById("statusText");
+  if (age > STALE_AFTER_MS){
+    dot.className = "dot stale"; text.textContent = "no recent data";
+  } else {
+    dot.className = "dot live"; text.textContent = "live";
+  }
+}
+
+let chart;
+function renderHistory(rows){
+  const labels = rows.map(r => new Date(r.created_at));
+  const moisture = rows.map(r => r.soil_moisture);
+  const temp = rows.map(r => r.temperature);
+
+  if (!chart){
+    chart = new Chart(document.getElementById("historyChart"), {
+      type: "line",
+      data: { labels, datasets: [
+        { label:"Moisture %", data:moisture, borderColor:"#5C8A72", backgroundColor:"transparent", tension:.3, yAxisID:"y", pointRadius:0 },
+        { label:"Temp °C", data:temp, borderColor:"#C97C4B", backgroundColor:"transparent", tension:.3, yAxisID:"y1", pointRadius:0 }
+      ]},
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:"index", intersect:false},
+        plugins:{ legend:{ labels:{ color:"#B9AF9C" } } },
+        scales:{
+          x:{ type:"time", time:{unit:"hour"}, ticks:{color:"#B9AF9C"}, grid:{color:"#3C342B"} },
+          y:{ position:"left", min:0, max:100, ticks:{color:"#5C8A72"}, grid:{color:"#3C342B"} },
+          y1:{ position:"right", ticks:{color:"#C97C4B"}, grid:{display:false} }
+        }
+      }
+    });
+  } else {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = moisture;
+    chart.data.datasets[1].data = temp;
+    chart.update();
+  }
+}
+
+function showError(msg){
+  const box = document.getElementById("errorBox");
+  box.textContent = msg; box.style.display = msg ? "block" : "none";
+}
+
+async function poll(){
+  try {
+    const latestRes = await fetch(`${SUPABASE_URL}/rest/v1/readings?order=created_at.desc&limit=1`, { headers });
+    if (!latestRes.ok) throw new Error("Couldn't reach the database (check your Supabase URL and key)");
+    const latest = await latestRes.json();
+    if (latest.length){ renderLatest(latest[0]); showError(""); }
+    else showError("No readings yet — waiting for the ESP32 to send its first one.");
+
+    const sinceISO = new Date(Date.now() - 24*60*60*1000).toISOString();
+    const histRes = await fetch(`${SUPABASE_URL}/rest/v1/readings?created_at=gte.${sinceISO}&order=created_at.asc`, { headers });
+    if (histRes.ok) renderHistory(await histRes.json());
+  } catch (err){
+    showError(err.message || "Connection error");
+    document.getElementById("statusDot").className = "dot stale";
+    document.getElementById("statusText").textContent = "offline";
+  }
+}
+
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
