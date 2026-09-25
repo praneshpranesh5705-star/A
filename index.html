@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root{--bg:#07130d;--panel:#0d1f15;--panel2:#10291a;--line:#1d3b28;--text:#eef8f0;--muted:#91aa98;--green:#61d98b;--yellow:#f4c95d;--red:#ff6b6b;--blue:#63b3ed}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#06110b,#0b1c12);color:var(--text);font:14px Inter,system-ui,sans-serif}button{font:inherit}.app{display:flex;min-height:100vh}.side{width:235px;border-right:1px solid var(--line);padding:24px 16px;position:fixed;height:100vh;background:#08170f}.brand{font-size:21px;font-weight:800;margin:0 8px 4px}.brand span{color:var(--green)}.sub{color:var(--muted);font-size:12px;margin:0 8px 28px}.nav button{display:block;width:100%;border:0;background:transparent;color:var(--muted);text-align:left;padding:12px;border-radius:10px;margin:4px 0;cursor:pointer}.nav button.active,.nav button:hover{background:var(--panel2);color:var(--text)}.main{margin-left:235px;width:calc(100% - 235px);padding:26px;max-width:1500px}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:24px}.title h1{margin:0 0 5px;font-size:28px}.title p{margin:0;color:var(--muted)}.status{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);padding:10px 14px;border-radius:999px}.dot{width:9px;height:9px;border-radius:50%;background:var(--yellow)}.dot.live{background:var(--green);box-shadow:0 0 12px #61d98b}.dot.off{background:var(--red)}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:rgba(13,31,21,.9);border:1px solid var(--line);border-radius:15px;padding:18px}.metric{min-height:142px}.label{color:var(--muted);font-size:12px}.metric h2{font-size:34px;margin:10px 0 6px}.metric small{color:var(--muted)}.pill{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:11px;margin-top:8px;background:#173323;color:var(--green)}.pill.warn{background:#392e13;color:var(--yellow)}.pill.bad{background:#3a1919;color:var(--red)}.section{margin-top:18px}.two{display:grid;grid-template-columns:2fr 1fr;gap:14px}.card h3{margin:0 0 15px;font-size:15px}.chart{height:310px}.devices{display:grid;gap:10px}.device{padding:13px;border:1px solid var(--line);border-radius:11px;background:#0a1a11}.device strong{display:block;margin-bottom:4px}.device span{font-size:12px;color:var(--muted)}.reading-list{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:12px;white-space:nowrap}.table th{color:var(--muted);font-weight:500}.alert{padding:11px;border-left:3px solid var(--green);background:#0b2114;border-radius:7px;margin:8px 0;color:#cfe8d6}.alert.warn{border-color:var(--yellow);background:#211c0b}.alert.bad{border-color:var(--red);background:#241010}.config{margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:12px}.hide{display:none}@media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}@media(max-width:720px){.side{position:static;width:100%;height:auto;border-right:0;border-bottom:1px solid var(--line)}.app{display:block}.main{margin:0;width:100%;padding:16px}.nav{display:flex;overflow:auto}.nav button{min-width:max-content}.grid{grid-template-columns:1fr 1fr}.top{align-items:flex-start;flex-direction:column}}@media(max-width:480px){.grid{grid-template-columns:1fr}.metric h2{font-size:30px}}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#06110b,#0b1c12);color:var(--text);font:14px Inter,system-ui,sans-serif}button{font:inherit}.app{display:flex;min-height:100vh}.side{width:235px;border-right:1px solid var(--line);padding:24px 16px;position:fixed;height:100vh;background:#08170f}.brand{font-size:21px;font-weight:800;margin:0 8px 4px}.brand span{color:var(--green)}.sub{color:var(--muted);font-size:12px;margin:0 8px 28px}.nav button{display:block;width:100%;border:0;background:transparent;color:var(--muted);text-align:left;padding:12px;border-radius:10px;margin:4px 0;cursor:pointer}.nav button.active,.nav button:hover{background:var(--panel2);color:var(--text)}.main{margin-left:235px;width:calc(100% - 235px);padding:26px;max-width:1500px}.top{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:24px}.title h1{margin:0 0 5px;font-size:28px}.title p{margin:0;color:var(--muted)}.status{display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line);padding:10px 14px;border-radius:999px}.dot{width:9px;height:9px;border-radius:50%;background:var(--yellow)}.dot.live{background:var(--green);box-shadow:0 0 12px #61d98b}.dot.off{background:var(--red)}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.card{background:rgba(13,31,21,.9);border:1px solid var(--line);border-radius:15px;padding:18px}.metric{min-height:142px}.label{color:var(--muted);font-size:12px}.metric h2{font-size:34px;margin:10px 0 6px}.metric small{color:var(--muted)}.pill{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:11px;margin-top:8px;background:#173323;color:var(--green)}.pill.warn{background:#392e13;color:var(--yellow)}.pill.bad{background:#3a1919;color:var(--red)}.section{margin-top:18px}.two{display:grid;grid-template-columns:2fr 1fr;gap:14px}.card h3{margin:0 0 15px;font-size:15px}.chart{height:310px}.devices{display:grid;gap:10px}.device{padding:13px;border:1px solid var(--line);border-radius:11px;background:#0a1a11}.device strong{display:block;margin-bottom:4px}.device span{font-size:12px;color:var(--muted)}.reading-list{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:12px;white-space:nowrap}.table th{color:var(--muted);font-weight:500}.alert{padding:11px;border-left:3px solid var(--green);background:#0b2114;border-radius:7px;margin:8px 0;color:#cfe8d6}.alert.warn{border-color:var(--yellow);background:#211c0b}.alert.bad{border-color:var(--red);background:#241010}.pump{display:flex;gap:10px;flex-wrap:wrap}.pump button{border:1px solid var(--line);background:#132b1c;color:var(--text);padding:10px 14px;border-radius:9px;cursor:pointer}.pump button:hover{border-color:var(--green)}.pump .on{background:#174b2a}.pump .off{background:#3a1919}.pump .auto{background:#17314a}.pumpState{font-size:13px;color:var(--muted);margin:10px 0}.config{margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:12px}.hide{display:none}@media(max-width:1050px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}@media(max-width:720px){.side{position:static;width:100%;height:auto;border-right:0;border-bottom:1px solid var(--line)}.app{display:block}.main{margin:0;width:100%;padding:16px}.nav{display:flex;overflow:auto}.nav button{min-width:max-content}.grid{grid-template-columns:1fr 1fr}.top{align-items:flex-start;flex-direction:column}}@media(max-width:480px){.grid{grid-template-columns:1fr}.metric h2{font-size:30px}}
 </style>
 </head>
 <body>
@@ -38,6 +38,16 @@
   <div class="card metric"><div class="label">READINGS (24H)</div><h2 id="count">—</h2><small>database records</small><div class="pill">Live database</div></div>
 </div>
 
+<div class="card section"><h3>💧 Irrigation Control</h3>
+  <div class="pumpState">Pump: <strong id="pumpState">Waiting for ESP32</strong> • Mode: <strong id="pumpMode">—</strong></div>
+  <div class="pump">
+    <button class="on" onclick="sendPumpCommand('ON')">Pump ON</button>
+    <button class="off" onclick="sendPumpCommand('OFF')">Pump OFF</button>
+    <button class="auto" onclick="sendPumpCommand('AUTO')">Automatic Mode</button>
+  </div>
+  <p style="color:var(--muted);font-size:12px;margin-bottom:0">Manual commands are sent to the ESP32 through Supabase. The firmware keeps a 2-minute safety cutoff.</p>
+</div>
+
 <div class="two section">
   <div class="card"><h3>Sensor Trend — Last 24 Hours</h3><div class="chart"><canvas id="chart"></canvas></div></div>
   <div class="card"><h3>Field Conditions</h3><div id="alerts"><div class="alert">Waiting for the first ESP32 reading.</div></div></div>
@@ -57,7 +67,7 @@ const SUPABASE_URL="https://YOUR_PROJECT.supabase.co";
 const SUPABASE_ANON_KEY="YOUR_ANON_KEY";
 const POLL_MS=10000;
 const headers={apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+SUPABASE_ANON_KEY};
-let history=[], chart=null, analyticsChart=null;
+let history=[], chart=null, analyticsChart=null, latestPumpEvent=null;
 
 function setText(id,v){document.getElementById(id).textContent=v}
 function moistureStatus(v){return v<30?["Dry — irrigation needed","bad"]:v>70?["Wet","warn"]:["Optimal",""]}
@@ -85,6 +95,7 @@ function updateUI(rows){
   renderRows(history.slice(0,12));
   renderChart();
   renderAnalytics();
+  loadIrrigation();
 }
 
 function renderAlerts(m,t){
@@ -136,6 +147,33 @@ function offline(msg){
  if(msg&&msg!=="empty")document.getElementById("alerts").innerHTML='<div class="alert warn">'+msg+'</div>';
 }
 
+async function sendPumpCommand(command){
+  try{
+    if(SUPABASE_URL.includes("YOUR_PROJECT")||SUPABASE_ANON_KEY==="YOUR_ANON_KEY"){alert("Configure Supabase URL and anon key first.");return}
+    const res=await fetch(SUPABASE_URL+"/rest/v1/pump_commands",{
+      method:"POST",headers:{...headers,"Content-Type":"application/json","Prefer":"return=minimal"},
+      body:JSON.stringify({device_id:"ESP32-Field-01",command,processed:false})
+    });
+    if(!res.ok)throw new Error("Command failed ("+res.status+")");
+    setText("pumpMode",command==="AUTO"?"AUTO":"MANUAL");
+    setText("pumpState","Command sent: "+command);
+  }catch(e){alert(e.message)}
+}
+
+async function loadIrrigation(){
+  if(SUPABASE_URL.includes("YOUR_PROJECT")||SUPABASE_ANON_KEY==="YOUR_ANON_KEY")return;
+  try{
+    const res=await fetch(SUPABASE_URL+"/rest/v1/irrigation_events?order=created_at.desc&limit=15",{headers});
+    if(!res.ok)return;
+    const rows=await res.json();
+    document.getElementById("irrigationRows").innerHTML=rows.length?rows.map(r=>'<tr><td>'+new Date(r.created_at).toLocaleString()+'</td><td>'+Number(r.moisture_before).toFixed(1)+'%</td><td>'+Number(r.moisture_after).toFixed(1)+'%</td><td>'+r.duration_seconds+'s</td><td>'+r.trigger+'</td></tr>').join(""):'<tr><td colspan="5">No irrigation events yet.</td></tr>';
+    if(rows.length){
+      const r=rows[0];
+      setText("pumpState","Last run "+r.duration_seconds+"s");
+    }
+  }catch(e){}
+}
+
 async function poll(){
  try{
   if(SUPABASE_URL.includes("YOUR_PROJECT")||SUPABASE_ANON_KEY==="YOUR_ANON_KEY"){offline("Configure Supabase URL and anon key to connect the dashboard.");return}
@@ -153,7 +191,7 @@ document.querySelectorAll(".nav button").forEach(btn=>btn.addEventListener("clic
  ["overview","analytics","alerts","devices"].forEach(id=>document.getElementById(id).classList.add("hide"));
  document.getElementById(btn.dataset.section).classList.remove("hide");
 }));
-poll();setInterval(poll,POLL_MS);
+poll();loadIrrigation();setInterval(poll,POLL_MS);setInterval(loadIrrigation,15000);
 </script>
 </body>
 </html>
